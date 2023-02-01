@@ -17,164 +17,39 @@
 # under the License.
 #
 
-SUBDIRS = features
-PRECROSS_TARGET =
+PHPUNIT=php $(top_srcdir)/vendor/bin/phpunit
 
-if WITH_C_GLIB
-SUBDIRS += c_glib
-PRECROSS_TARGET += precross-c_glib
-endif
+stubs: ../../../test/ThriftTest.thrift  TestValidators.thrift
+	mkdir -p ./packages/php
+	$(THRIFT) --gen php -r --out ./packages/php ../../../test/ThriftTest.thrift
+	mkdir -p ./packages/phpv
+	mkdir -p ./packages/phpvo
+	mkdir -p ./packages/phpjs
+	$(THRIFT) --gen php:validate     -r --out ./packages/phpv   TestValidators.thrift
+	$(THRIFT) --gen php:validate,oop -r --out ./packages/phpvo  TestValidators.thrift
+	$(THRIFT) --gen php:json         -r --out ./packages/phpjs  TestValidators.thrift
 
-if WITH_CL
-SUBDIRS += cl
-PRECROSS_TARGET += precross-cl
-endif
+deps: $(top_srcdir)/composer.json
+	composer install --working-dir=$(top_srcdir)
 
-if WITH_CPP
-SUBDIRS += cpp
-PRECROSS_TARGET += precross-cpp
-endif
+all-local: deps
 
-if WITH_PERL
-SUBDIRS += perl
-PRECROSS_TARGET += precross-perl
-endif
+check-json-serializer: deps stubs
+	$(PHPUNIT) --log-junit=TEST-log-json-serializer.xml JsonSerialize/
 
-if WITH_PHP
-SUBDIRS += php
-PRECROSS_TARGET += precross-php
-endif
+check-validator: deps stubs
+	$(PHPUNIT) --log-junit=TEST-log-validator.xml Validator/
 
-if WITH_DART
-SUBDIRS += dart
-PRECROSS_TARGET += precross-dart
-endif
+check-protocol:	deps stubs
+	$(PHPUNIT) --log-junit=TEST-log-protocol.xml Protocol/
 
-if WITH_PYTHON
-SUBDIRS += py
-PRECROSS_TARGET += precross-py
-SUBDIRS += py.tornado
-if WITH_TWISTED_TEST
-SUBDIRS += py.twisted
-endif
-endif
+check: deps stubs \
+  check-protocol \
+  check-validator \
+  check-json-serializer
 
-if WITH_RUBY
-SUBDIRS += rb
-PRECROSS_TARGET += precross-rb
-endif
-
-if WITH_HAXE
-SUBDIRS += haxe
-endif
-
-if WITH_DOTNET
-SUBDIRS += netstd
-endif
-
-if WITH_GO
-SUBDIRS += go
-PRECROSS_TARGET += precross-go
-endif
-
-if WITH_ERLANG
-SUBDIRS += erl
-PRECROSS_TARGET += precross-erl
-endif
-
-if WITH_LUA
-SUBDIRS += lua
-PRECROSS_TARGET += precross-lua
-endif
-
-if WITH_RS
-SUBDIRS += rs
-PRECROSS_TARGET += precross-rs
-endif
-
-#
-# generate html for ThriftTest.thrift AND validate it!
-#
-if WITH_NODEJS
-check-local:
-	$(top_builddir)/compiler/cpp/thrift --gen html -r $(top_srcdir)/test/ThriftTest.thrift
-	$(top_builddir)/node_modules/.bin/html-validator --file=gen-html/index.html --verbose
-	$(top_builddir)/node_modules/.bin/html-validator --file=gen-html/ThriftTest.html --verbose
-else
-check-local:
-	$(top_builddir)/compiler/cpp/thrift --gen html -r $(top_srcdir)/test/ThriftTest.thrift
-endif
+distclean-local:
 
 clean-local:
-	$(RM) -r $(top_srcdir)/test/gen-html/
-	find . -type d -name "__pycache__" | xargs rm -rf
-	find . -type f -name "*.pyc" | xargs rm -f
-
-dist-hook:
-	$(RM) -r $(distdir)/gen-html/
-	find $(distdir) -type d -name "__pycache__" | xargs rm -rf
-	find $(distdir) -type f -name "*.pyc" | xargs rm -f
-
-EXTRA_DIST = \
-	audit \
-	c_glib \
-	cl \
-	cpp \
-	crossrunner \
-	dart \
-	erl \
-	keys \
-	lua \
-	ocaml \
-	perl \
-	php \
-	py \
-	py.tornado \
-	py.twisted \
-	rb \
-	rs \
-	threads \
-	AnnotationTest.thrift \
-	BrokenConstants.thrift \
-	ConstantsDemo.thrift \
-	DebugProtoTest.thrift \
-	DenseLinkingTest.thrift \
-	DocTest.thrift \
-	DoubleConstantsTest.thrift \
-	EnumContainersTest.thrift \
-	EnumTest.thrift \
-	FullCamelTest.thrift \
-	Include.thrift \
-	Identifiers.thrift \
-	Int64Test.thrift \
-	JavaBeansTest.thrift \
-	JavaBinaryDefault.thrift \
-	JavaDeepCopyTest.thrift \
-	JavaTypes.thrift \
-	JsDeepConstructorTest.thrift \
-	ManyOptionals.thrift \
-	ManyTypedefs.thrift \
-	NameConflictTest.thrift \
-	OptionalRequiredTest.thrift \
-	Recursive.thrift \
-	ReuseObjects.thrift \
-	SmallTest.thrift \
-	StressTest.thrift \
-	ThriftTest.thrift \
-	TypedefTest.thrift \
-	Types.thrift \
-	UnsafeTypes.thrift \
-	Service.thrift \
-	SpecificNameTest.thrift \
-	known_failures_Linux.json \
-	test.py \
-	tests.json \
-	rebuild_known_failures.sh \
-	result.js \
-	index.html \
-	README.md \
-	valgrind.suppress
-
-precross-%:
-	$(MAKE) -C $* precross
-precross: $(PRECROSS_TARGET)
+	$(RM) -r ./packages
+	$(RM) TEST-*.xml

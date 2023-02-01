@@ -17,153 +17,148 @@
 # under the License.
 #
 
-ACLOCAL_AMFLAGS = -I ./aclocal
-
-SUBDIRS = compiler/cpp lib
 
 if WITH_TESTS
-SUBDIRS += test
+SUBDIRS = test
 endif
 
-if WITH_TUTORIAL
-SUBDIRS += tutorial
-endif
+if WITH_PHP_EXTENSION
+%.so:
+	cd src/ext/thrift_protocol/ && $(MAKE)
 
-clean-local:
-	$(RM) -r vendor/
+phpconfdir=$(PHP_CONFIG_PREFIX)
+phpconf_DATA=thrift_protocol.ini
+
+phpmoduledir = `php-config --extension-dir`
+phpmodule_SCRIPTS = src/ext/thrift_protocol/modules/thrift_protocol.so
 
 distclean-local:
-	$(RM) -r .dub/
-	$(RM) -r autom4te.cache/
+	if [ -f src/ext/thrift_protocol/Makefile ]; then cd src/ext/thrift_protocol/ && $(MAKE) distclean; fi
+	cd $(phpmodule_SCRIPTS) && $(PHPIZE) --clean
 
-CLEANFILES = \
-	composer.lock \
-	dub.selections.json
-
-DISTCLEANFILES = \
-	Makefile \
-	Makefile.in \
-	aclocal.m4 \
-	apache-thrift-test-library \
-	autoscan.log \
-	compile \
-	config.guess \
-	config.hin \
-	config.hin~ \
-	config.log \
-	config.status \
-	config.sub \
-	configure \
-	configure.scan \
-    debcomp \
-    install-sh \
-    ltmain.sh \
-    missing \
-    ylwrap
-
-dist-hook:
-	find $(distdir) -type f \( -iname ".DS_Store" -or -iname "._*" -or -iname ".gitignore" \) | xargs rm -f
-	find $(distdir) -type d \( -iname ".deps" -or -iname ".libs" \) | xargs rm -rf
-	find $(distdir) -type d \( -iname ".svn" -or -iname ".git" \) | xargs rm -rf
-
-print-version:
-	@echo $(PACKAGE_VERSION)
-
-.PHONY: precross cross
-precross-%: all
-	$(MAKE) -C $* precross
-precross: all precross-test precross-lib
-
-empty :=
-space := $(empty) $(empty)
-comma := ,
-
-CROSS_LANGS = @MAYBE_CPP@ @MAYBE_C_GLIB@ @MAYBE_CL@ @MAYBE_D@ @MAYBE_JAVA@ @MAYBE_PYTHON@ @MAYBE_PY3@ @MAYBE_RUBY@ @MAYBE_PERL@ @MAYBE_PHP@ @MAYBE_GO@ @MAYBE_NODEJS@ @MAYBE_DART@ @MAYBE_ERLANG@ @MAYBE_LUA@ @MAYBE_RS@ @MAYBE_NETSTD@ @MAYBE_NODETS@
-CROSS_LANGS_COMMA_SEPARATED = $(subst $(space),$(comma),$(CROSS_LANGS))
-
-if WITH_PY3
-CROSS_PY=$(PYTHON3)
-else
-CROSS_PY=$(PYTHON)
 endif
 
-if WITH_PYTHON
-crossfeature: precross
-	$(CROSS_PY) test/test.py --retry-count 5 --features .* --skip-known-failures --server $(CROSS_LANGS_COMMA_SEPARATED)
-else
-# feature test needs python build
-crossfeature:
-endif
+phpdir = $(PHP_PREFIX)/
+php_DATA = \
+	lib/TMultiplexedProcessor.php
 
-cross-%: precross crossfeature
-	$(CROSS_PY) test/test.py --retry-count 5 --skip-known-failures --server $(CROSS_LANGS_COMMA_SEPARATED) --client $(CROSS_LANGS_COMMA_SEPARATED) --regex "$*"
+phpbasedir = $(phpdir)/Base
+phpbase_DATA = \
+	lib/Base/TBase.php
 
-cross: cross-.*
+phpclassloaderdir = $(phpdir)/ClassLoader
+phpclassloader_DATA = \
+	lib/ClassLoader/ThriftClassLoader.php
 
-TIMES = 1 2 3
-fail: precross
-	$(CROSS_PY) test/test.py || true
-	$(CROSS_PY) test/test.py --update-expected-failures=overwrite
-	$(foreach var,$(TIMES),test/test.py -s || true;test/test.py --update-expected-failures=merge;)
+phpexceptiondir = $(phpdir)/Exception
+phpexception_DATA = \
+	lib/Exception/TApplicationException.php \
+	lib/Exception/TException.php \
+	lib/Exception/TProtocolException.php \
+	lib/Exception/TTransportException.php
 
-codespell_skip_files = \
-	*.jar \
-	*.class \
-	*.so \
-	*.a \
-	*.la \
-	*.o \
-	*.p12 \
-	*OCamlMakefile \
-	.keystore \
-	.truststore \
-	CHANGES \
-	config.sub \
-	configure \
-	depcomp \
-	libtool.m4 \
-	output.* \
-	rebar \
-	thrift
+phpfactorydir = $(phpdir)/Factory
+phpfactory_DATA = \
+	lib/Factory/TBinaryProtocolFactory.php \
+	lib/Factory/TCompactProtocolFactory.php \
+	lib/Factory/TJSONProtocolFactory.php \
+	lib/Factory/TProtocolFactory.php \
+	lib/Factory/TStringFuncFactory.php \
+	lib/Factory/TTransportFactory.php
 
-skipped_files = $(subst $(space),$(comma),$(codespell_skip_files))
+phpprotocoldir = $(phpdir)/Protocol
+phpprotocol_DATA = \
+	lib/Protocol/TBinaryProtocolAccelerated.php \
+	lib/Protocol/TBinaryProtocol.php \
+	lib/Protocol/TCompactProtocol.php \
+	lib/Protocol/TJSONProtocol.php \
+	lib/Protocol/TMultiplexedProtocol.php \
+	lib/Protocol/TProtocol.php \
+	lib/Protocol/TProtocolDecorator.php \
+	lib/Protocol/TSimpleJSONProtocol.php
 
-style-local:
-	codespell --write-changes --skip=$(skipped_files) --disable-colors
+phpprotocoljsondir = $(phpprotocoldir)/JSON
+phpprotocoljson_DATA = \
+	lib/Protocol/JSON/BaseContext.php \
+	lib/Protocol/JSON/ListContext.php \
+	lib/Protocol/JSON/LookaheadReader.php \
+	lib/Protocol/JSON/PairContext.php
+
+phpprotocolsimplejsondir = $(phpprotocoldir)/SimpleJSON
+phpprotocolsimplejson_DATA = \
+	lib/Protocol/SimpleJSON/CollectionMapKeyException.php \
+	lib/Protocol/SimpleJSON/Context.php \
+	lib/Protocol/SimpleJSON/ListContext.php \
+	lib/Protocol/SimpleJSON/MapContext.php \
+	lib/Protocol/SimpleJSON/StructContext.php
+
+phpserializerdir = $(phpdir)/Serializer
+phpserializer_DATA = \
+	lib/Serializer/TBinarySerializer.php
+
+phpserverdir = $(phpdir)/Server
+phpserver_DATA = \
+	lib/Server/TServerSocket.php \
+	lib/Server/TForkingServer.php \
+	lib/Server/TServer.php \
+	lib/Server/TServerTransport.php \
+	lib/Server/TSimpleServer.php
+
+phpstringfuncdir = $(phpdir)/StringFunc
+phpstringfunc_DATA = \
+	lib/StringFunc/Mbstring.php \
+	lib/StringFunc/Core.php \
+	lib/StringFunc/TStringFunc.php
+
+phptransportdir = $(phpdir)/Transport
+phptransport_DATA = \
+	lib/Transport/TBufferedTransport.php \
+	lib/Transport/TCurlClient.php \
+	lib/Transport/TFramedTransport.php \
+	lib/Transport/THttpClient.php \
+	lib/Transport/TMemoryBuffer.php \
+	lib/Transport/TNullTransport.php \
+	lib/Transport/TPhpStream.php \
+	lib/Transport/TSocket.php \
+	lib/Transport/TSocketPool.php \
+	lib/Transport/TTransport.php
+
+phptypedir = $(phpdir)/Type
+phptype_DATA = \
+	lib/Type/TMessageType.php \
+	lib/Type/TType.php \
+	lib/Type/TConstant.php
+
+clean-local:
+	if [ -f src/ext/thrift_protocol/Makefile ]; then cd src/ext/thrift_protocol/ && $(MAKE) clean; fi
+
 
 EXTRA_DIST = \
-	.asf.yaml \
-	.clang-format \
-	.dockerignore \
-	.editorconfig \
-	.eslintignore \
-	.eslintrc.json \
-	.flake8 \
-	.gitattributes \
-	.gitignore \
-	.travis.yml \
-	ApacheThrift.nuspec \
-	appveyor.yml \
-	bootstrap.sh \
-	bower.json \
-	build \
-	CHANGES.md \
-	CMakeLists.txt \
-	composer.json \
-	contrib \
-	CONTRIBUTING.md \
-	debian \
-	doap.rdf \
-	doc \
-	dub.json \
-	jitpack.yml \
-	LANGUAGES.md \
-	LICENSE \
-	NOTICE \
-	package.json \
-	package-lock.json \
-	phpcs.xml.dist \
+	lib \
+	src/autoload.php \
+	src/ext/thrift_protocol/config.m4 \
+	src/ext/thrift_protocol/config.w32 \
+	src/ext/thrift_protocol/php_thrift_protocol.cpp \
+	src/ext/thrift_protocol/php_thrift_protocol.h \
+	src/Thrift.php \
+	src/TStringUtils.php \
+	coding_standards.md \
+	thrift_protocol.ini \
+	README.apache.md \
 	README.md \
-	rust-toolchain \
-	sonar-project.properties \
-	Thrift.podspec
+	test/Fixtures.php \
+	test/TestValidators.thrift \
+	test/JsonSerialize/JsonSerializeTest.php \
+	test/Protocol/BinarySerializerTest.php \
+	test/Protocol/TJSONProtocolFixtures.php \
+	test/Protocol/TJSONProtocolTest.php \
+	test/Protocol/TSimpleJSONProtocolFixtures.php \
+	test/Protocol/TSimpleJSONProtocolTest.php \
+	test/Validator/BaseValidatorTest.php \
+	test/Validator/ValidatorTest.php \
+	test/Validator/ValidatorTestOop.php
+
+
+MAINTAINERCLEANFILES = \
+	Makefile.in
+
